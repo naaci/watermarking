@@ -74,19 +74,3 @@ class Watermarker:
                     self.svd_watermarker_2.extract_watermark(HL))
         else:
             return zeros_like(LL), zeros_like(LL)
-
-
-if __name__ == "__main__":
-    from numpy import asarray, ceil, floor, isclose, random
-    watermarker = Watermarker(.01)
-    host = random.random((512, 512))
-    watermark = random.random(
-        ceil(asarray(host.shape) /
-             watermarker.IMAGE_TO_WATERMARK_RATIO).astype(int))
-    watermark[watermark >= .5] = 1
-    watermark[watermark < .5] = 0
-    watermarked = watermarker.add_watermark(host, watermark)
-    watermark_ = watermarker.extract_watermark(watermarked)
-    c = isclose(watermark, watermark_)
-    print("max err:", abs(watermark - watermark_).max())
-    print(c.all() or f"{watermark[c].size / watermark.size:>.2%} True")
