@@ -1,6 +1,6 @@
 """
 Jain, C., Arora, S., &#38; Panigrahi, P. K. (2008). 
-A Reliable SVD based Watermarking Schem. May 2018, 1–8. 
+A Reliable SVD based Watermarking Scheme. May 2018, 1–8. 
 preprint
 http://arxiv.org/abs/0808.0309
 """
