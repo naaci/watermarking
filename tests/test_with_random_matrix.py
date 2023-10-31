@@ -1,6 +1,6 @@
 import sys
-from importlib import import_module
 from pathlib import Path
+from importlib.machinery import SourceFileLoader
 
 from numpy import asarray, isclose, random
 
@@ -26,7 +26,6 @@ def _test_watermark(watermarker):
     watermark_ = watermarker.extract_watermark(watermarked)
     assert isclose(watermark, watermark_).all(), watermarker.__module__
 
-    # c = isclose(watermark, watermark_)
     # print("Watermarking Test result:")
     # print("method:".ljust(10), Watermarker.__module__)
     # print("max err:".ljust(10), abs(watermark - watermark_).max())
@@ -34,19 +33,17 @@ def _test_watermark(watermarker):
 
 
 def test_watermarks():
-    for module in cwd.iterdir():
-        if (
-            module.name.startswith(".")
-            or module.name.startswith("_")
-            or module.is_dir()
-            or not module.name.endswith(".py")
-        ):
+    for method in cwd.glob("*.py"):
+        if method.name == "__init__.py":
             continue
-        module = module.name.removesuffix(".py")
-        print(module)
 
-        watermarker = import_module(module).Watermarker(0.01)
-        _test_watermark(watermarker)
+        print(method.name)
+
+        _test_watermark(
+            SourceFileLoader(method.name.removesuffix(".py"), method.as_posix())
+            .load_module()
+            .Watermarker(0.01)
+        )
 
 
 if __name__ == "__main__":

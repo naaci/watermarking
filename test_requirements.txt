@@ -1,0 +1,5 @@
+fpdf2
+pillow
+simplejpeg
+scikit-image
+tifffile

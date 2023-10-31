@@ -1,20 +1,22 @@
 import io
 from datetime import datetime
-from importlib import import_module
 from pathlib import Path
 from sys import path, stderr
 
 from fpdf import FPDF
-from numpy import asarray, ascontiguousarray, clip, eye, indices, log10, sqrt
-from numpy.linalg import matrix_power
+from numpy import asarray, ascontiguousarray, clip
 from numpy.random import RandomState
-from numpy.typing import ArrayLike
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 from simplejpeg import decode_jpeg, encode_jpeg
 from skimage import color, exposure, transform
-from skimage.metrics import structural_similarity
 from tifffile import tifffile
+
+import arnold, metrics
+from importlib.machinery import SourceFileLoader
+import os
+
+os.system("")
 
 # import imagecodecs
 # import imageio
@@ -27,38 +29,7 @@ path.append(str(cwd.parent / "watermarking"))
 # seterr(all="raise")
 k, p, q = 5, 12, 13
 p = q = 1
-k = 0
-
-
-def arnold_transform1(img: ArrayLike, k: int) -> ArrayLike:
-    T = eye(2, dtype=int)  # 2x2 Birim matris
-
-    for _ in range(2 * k):
-        T[:] = [[T[1, 0], T[1, 1]], [T[1, 1], T[1, 0] + T[1, 1]]]
-
-    T_inv = asarray([[T[1, 1], -T[0, 1]], [-T[1, 0], T[0, 0]]])
-
-    return coordinate_transform(img, T), T_inv
-
-
-def arnold_transform(image, k, p=1, q=1):
-    T = matrix_power([[1, p], [q, p * q + 1]], k)
-
-    T_inv = asarray(
-        [
-            [T[1, 1], -T[0, 1]],
-            [-T[1, 0], T[0, 0]],
-        ]
-    )
-
-    return coordinate_transform(image, T), T_inv
-
-
-def coordinate_transform(image, T):
-    i = indices(image.shape)
-    i = (T @ i.reshape(2, -1)).reshape(i.shape).astype(int)
-
-    return image[i[0] % image.shape[0], i[1] % image.shape[1]]
+# k = 0
 
 
 def report(friendyname, name, bitdepth=8, format="png"):
@@ -205,22 +176,28 @@ class Report_Generator:
     #     return imageio.imsave(path, image2, *args, **kvargs)
 
     def MSE(self, image1, image2):
-        return ((self._post_process(image1) - self._post_process(image2)) ** 2).mean()
+        return metrics.MSE(
+            self._post_process(image1),
+            self._post_process(image2),
+        )
 
     def PSNR(self, image1, image2):
-        return 10 * log10(1 / self.MSE(image1, image2))
+        return metrics.PSNR(
+            self._post_process(image1),
+            self._post_process(image2),
+        )
 
     def NCC(self, image1, image2):
-        image1 = self._post_process(image1)
-        image2 = self._post_process(image2)
-        return (image1 * image2).sum() / (
-            sqrt((image1**2).sum()) * sqrt((image2**2).sum())
+        return metrics.NCC(
+            self._post_process(image1),
+            self._post_process(image2),
         )
 
     def SSIM(self, image1, image2):
-        image1 = self._post_process(image1)
-        image2 = self._post_process(image2)
-        return structural_similarity(image1, image2, channel_axis=-1)
+        return metrics.SSIM(
+            self._post_process(image1),
+            self._post_process(image2),
+        )
 
     ###################################################
 
@@ -330,19 +307,19 @@ class Report_Generator:
 
         k, p, q = self.at
         if p == q == 1:
-            watermark, self.KEY = arnold_transform1(watermark, k)
+            watermark, self.KEY = arnold.arnold_transform1(watermark, k)
         else:
-            watermark, self.KEY = arnold_transform(watermark, k, p, q)
+            watermark, self.KEY = arnold.arnold_transform(watermark, k, p, q)
 
         self.watermarked = self.watermarker.add_watermark(self.host, watermark)
 
     def _extract_watermark(self, watermarked):
         watermark = self.watermarker.extract_watermark(watermarked)
-        return coordinate_transform(watermark, self.KEY)
+        return arnold.coordinate_transform(watermark, self.KEY)
 
     def _extract_watermarks(self, watermarked):
         return (
-            coordinate_transform(image, self.KEY)
+            arnold.coordinate_transform(image, self.KEY)
             for image in self.watermarker.extract_watermarks(watermarked)
         )
 
@@ -437,53 +414,53 @@ class Report_Generator:
         self.pdf2.output(self.working_path.as_posix())
 
 
-def test_watermarks(
-    host="images/host_image.png",
-    watermark1="images/watermark.png",
-    watermark2="images/watermark2.png",
-    k=0,
-    p=1,
-    q=1,
-):
+def _test_watermark(watermarker):
+    host = "images/host_image.png"
+    watermark1 = "images/watermark.png"
+    watermark2 = "images/watermark2.png"
+    # k = 0
+    # p = 1
+    # q = 1
     out = cwd / "results"
     out.mkdir(parents=True, exist_ok=True)
 
-    for module in (cwd.parent / "watermarking").iterdir():
-        if (
-            module.name.startswith(".")
-            or module.name.startswith("_")
-            or module.is_dir()
-            or not module.name.endswith(".py")
-        ):
+    if hasattr(Report_Generator, "sf"):
+        watermarker.sf = Report_Generator.sf
+    else:
+        watermarker.sf *= Report_Generator.SF
+
+    t = Report_Generator(
+        watermarker,
+        cwd / host,
+        cwd / watermark1,
+        cwd / watermark2,
+        out
+        / f"{watermarker.__module__}/{watermarker.__module__}.w={watermarker.sf:g}{f'.k={k}' if k else ''}{'.p={p}.q={q}' if k and p!=1 else ''}.pdf",
+        k=k,
+        p=p,
+        q=q,
+    )
+
+    if not t.working_path.is_file():
+        try:
+            t.tests(watermarker.__module__)
+        except Exception as err:
+            stderr.write(f"\033[1;31m{str(err)}\033[0m")
+
+
+def test_watermarks():
+    for method in (cwd.parent / "watermarking").glob("*.py"):
+        if method.name == "__init__.py":
             continue
-        module = module.name.removesuffix(".py")
-        print(module)
 
-        watermarker = import_module(module).Watermarker(0.01)
+        print("\033[1;32m", method.name, "\033[0m")
 
-        if hasattr(Report_Generator, "sf"):
-            watermarker.sf = Report_Generator.sf
-        else:
-            watermarker.sf *= Report_Generator.SF
-
-        t = Report_Generator(
-            watermarker,
-            cwd / host,
-            cwd / watermark1,
-            cwd / watermark2,
-            out
-            / f"{module}/{module}.w={watermarker.sf:g}{f'.k={k}' if k else ''}{'.p={p}.q={q}' if k and p!=1 else ''}.pdf",
-            k=k,
-            p=p,
-            q=q,
+        _test_watermark(
+            SourceFileLoader(method.name.removesuffix(".py"), method.as_posix())
+            .load_module()
+            .Watermarker(0.01),
         )
-
-        if not t.working_path.is_file():
-            try:
-                t.tests(module)
-            except Exception as err:
-                stderr.write(f"{str(err)}")
 
 
 if __name__ == "__main__":
-    test_watermarks(k=k, p=p, q=q)
+    test_watermarks()

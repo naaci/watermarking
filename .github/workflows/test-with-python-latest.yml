@@ -1,0 +1,23 @@
+name: Pytest with python-latest
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - run: |
+        pip install --upgrade pip
+        pip install --upgrade setuptools
+        pip install -r requirements.txt
+        pip install --upgrade pytest
+    - name: Run tests
+      run: |
+        pytest tests/
