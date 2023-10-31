@@ -1,2 +1,2 @@
 **/__pycache__/*.pyc
-tests/results/*
+test_with_sample_images/results/*
