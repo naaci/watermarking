@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from importlib.machinery import SourceFileLoader
+from importlib import import_module
 
 from numpy import asarray, isclose, random
 
@@ -40,8 +40,7 @@ def test_watermarks():
         print(method.name)
 
         _test_watermark(
-            SourceFileLoader(method.name.removesuffix(".py"), method.as_posix())
-            .load_module()
+            import_module(method.name.removesuffix(".py"), method.as_posix())
             .Watermarker(0.01)
         )
 

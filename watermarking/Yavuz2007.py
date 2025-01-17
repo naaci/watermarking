@@ -6,7 +6,7 @@ https://doi.org/10.1145/1244002.1244232
 """
 
 from numpy import log2, sqrt
-from numpy.core.numeric import zeros_like
+from numpy import zeros_like
 from pywt import wavedec2, waverec2
 
 from Chandra2002 import Watermarker as chandraWatermarker
