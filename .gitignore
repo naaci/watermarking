@@ -1,2 +1,3 @@
 **/__pycache__/*.pyc
 test_with_sample_images/results/*
+uv.lock

@@ -1,0 +1,20 @@
+[project]
+name = "watermarking"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.3.3",
+    "pywavelets>=1.9.0",
+    "scipy",
+]
+
+[dependency-groups]
+test = [
+    "fpdf2",
+    "pillow",
+    "scikit-image",
+    "simplejpeg",
+    "tifffile",
+]
