@@ -8,6 +8,10 @@ dependencies = [
     "numpy>=2.3.3",
     "pywavelets>=1.9.0",
     "scipy",
+    "ipykernel>=7.1.0",
+    "notebook>=7.5.0",
+    "pillow>=12.0.0",
+    "scikit-image>=0.25.2",
 ]
 
 [dependency-groups]
